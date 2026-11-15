@@ -1,0 +1,5 @@
+INFO:     Started server process [21268]
+INFO:     Waiting for application startup.
+2026-11-15 13:53:27,432 [INFO] voicefirst: VoiceFirst AI backend initialized successfully.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
