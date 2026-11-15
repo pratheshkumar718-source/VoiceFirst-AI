@@ -8,24 +8,30 @@ import {
   AlertCircle,
   FileCheck,
   Eye,
+  Trash2,
+  Camera,
 } from 'lucide-react';
 import { api } from '../services/api';
 import type { UploadResponse } from '../services/api';
+import { CameraCaptureModal } from './CameraCaptureModal';
 
 interface DocumentUploadProps {
   language: string;
   onDocumentAnalyzed: (response: UploadResponse) => void;
   currentDocument?: UploadResponse | null;
+  onClearDocument?: () => void;
 }
 
 export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   language,
   onDocumentAnalyzed,
   currentDocument,
+  onClearDocument,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isTamil = language === 'ta';
 
@@ -85,18 +91,20 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs transition-all">
+    <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-sm transition-all">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3 mb-4">
         <div>
-          <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-blue-700" />
-            {isTamil ? 'அரசு ஆவணப் பதிவேற்றம்' : 'Document Understanding & Ingestion'}
+          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+              <FileText className="w-4 h-4" />
+            </div>
+            <span>{isTamil ? 'அரசு ஆவணப் பதிவேற்றம்' : 'Document Ingestion & Analysis'}</span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
             {isTamil
-              ? 'படிவம், சான்றிதழ் அல்லது அறிவிக்கையை பதிவேற்றவும் (PDF, JPG, PNG)'
-              : 'Upload any government application, notice, or certificate (Max 5MB)'}
+              ? 'படிவம் அல்லது அறிவிக்கையை பதிவேற்றவும் (PDF, JPG, PNG)'
+              : 'Upload official application forms, notices, or certificates'}
           </p>
         </div>
 
@@ -104,10 +112,10 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         <button
           onClick={handleSampleLoad}
           disabled={isLoading}
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 text-blue-800 rounded-xl text-xs font-black border border-blue-200/80 transition-all shadow-2xs hover:shadow-xs shrink-0 self-start sm:self-auto cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-semibold border border-blue-200 transition-all shadow-xs shrink-0 self-start sm:self-auto cursor-pointer"
         >
-          <Sparkles className="w-3.5 h-3.5 text-blue-700 animate-pulse" />
-          <span>{isTamil ? 'மாதிரி உதவித்தொகை படிவம்' : '⚡ Load Sample Scholarship Form'}</span>
+          <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+          <span>{isTamil ? 'மாதிரி படிவத்தை சோதிக்க' : 'Load Sample Form'}</span>
         </button>
       </div>
 
@@ -120,11 +128,10 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`relative border-2 border-dashed rounded-2xl p-7 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+          className={`relative border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center text-center transition-all ${
             isDragging
-              ? 'border-blue-600 bg-blue-50/60 ring-4 ring-blue-100 scale-[0.99]'
-              : 'border-slate-300 hover:border-blue-500 bg-slate-50/50 hover:bg-blue-50/20'
+              ? 'border-blue-600 bg-blue-50/60 ring-4 ring-blue-100'
+              : 'border-slate-200 hover:border-blue-400 bg-slate-50/50 hover:bg-blue-50/30'
           }`}
         >
           <input
@@ -141,48 +148,63 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
           {isLoading ? (
             <div className="flex flex-col items-center gap-3 py-6">
-              <div className="relative">
-                <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center">
-                  <Loader2 className="w-8 h-8 text-blue-700 animate-spin" />
-                </div>
+              <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
+                <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
               </div>
               <div>
-                <p className="text-sm font-black text-slate-800">
+                <p className="text-sm font-bold text-slate-800">
                   {isTamil
                     ? 'ஜெமினி AI ஆவணத்தை முழுமையாகப் பகுப்பாய்வு செய்கிறது...'
                     : 'Gemini Multimodal AI is analyzing document structure...'}
                 </p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Detecting form fields, eligibility criteria, and Tamil translation...
+                <p className="text-xs text-slate-500 mt-1">
+                  Detecting form fields, eligibility rules, and instructions...
                 </p>
               </div>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3 py-3">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-100 to-indigo-100 text-blue-700 flex items-center justify-center shadow-2xs">
-                <UploadCloud className="w-7 h-7" />
+              <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center">
+                <UploadCloud className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-sm font-black text-slate-800">
+                <p className="text-sm font-bold text-slate-800">
                   {isTamil
-                    ? 'கோப்பை இங்கு இழுத்துப் போடவும் அல்லது கிளிக் செய்யவும்'
-                    : 'Click to upload or drag & drop application document'}
+                    ? 'கோப்பை இங்கு இழுத்துப் போடவும் அல்லது தேர்வு செய்க'
+                    : 'Drag & drop document here, or choose an option below'}
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
-                  Supports Official Government Application PDFs, Marksheets, or Aadhaar Cards
+                  Supported formats: PDF, JPG, PNG (maximum size: 5MB)
                 </p>
               </div>
-              <span className="text-[11px] font-bold text-blue-700 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-2xs">
-                PDF, PNG, JPG up to 5MB
-              </span>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2.5 mt-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                >
+                  {isTamil ? 'கோப்புகளை உலாவுக' : 'Browse Files'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsCameraOpen(true)}
+                  className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Camera className="w-3.5 h-3.5 text-blue-600" />
+                  <span>{isTamil ? 'புகைப்படம் எடு' : 'Snap Photo'}</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
       ) : (
         /* Document Preview when uploaded */
-        <div className="bg-gradient-to-r from-slate-50 to-blue-50/30 rounded-2xl p-4 sm:p-5 border border-slate-200/90 flex flex-col sm:flex-row gap-5 items-center">
+        <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 border border-slate-200/90 flex flex-col sm:flex-row gap-5 items-center">
           {/* Document Preview Thumbnail */}
-          <div className="relative group w-28 h-36 bg-white rounded-xl border border-slate-300 overflow-hidden shrink-0 shadow-xs flex items-center justify-center">
+          <div className="relative group w-24 h-32 bg-white rounded-xl border border-slate-200 overflow-hidden shrink-0 shadow-xs flex items-center justify-center">
             {currentDocument.preview_url ? (
               <img
                 src={api.getFileUrl(currentDocument.preview_url)}
@@ -193,7 +215,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
                 }}
               />
             ) : (
-              <FileCheck className="w-10 h-10 text-blue-600" />
+              <FileCheck className="w-8 h-8 text-blue-600" />
             )}
             <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold">
               <Eye className="w-4 h-4 mr-1" />
@@ -202,12 +224,12 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           </div>
 
           <div className="flex-1 min-w-0 text-center sm:text-left">
-            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 mb-2">
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 mb-2">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{isTamil ? 'ஜெமினி மல்டிமோடல் பகுப்பாய்வு தயார்' : 'Gemini Multimodal Analysis Complete'}</span>
+              <span>{isTamil ? 'ஜெமினி பகுப்பாய்வு முடிந்தது' : 'Gemini Analysis Complete'}</span>
             </div>
 
-            <h3 className="text-base font-black text-slate-900 truncate">
+            <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate">
               {currentDocument.filename}
             </h3>
 
@@ -220,13 +242,21 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
             <div className="mt-3 flex items-center justify-center sm:justify-start gap-3">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="text-xs text-blue-700 font-bold hover:underline cursor-pointer"
+                className="text-xs text-blue-600 font-semibold hover:underline cursor-pointer"
               >
                 {isTamil ? 'வேறு ஆவணத்தைப் பதிவேற்றுக' : 'Change Document'}
               </button>
               <span className="text-slate-300">·</span>
+              <button
+                onClick={onClearDocument}
+                className="text-xs text-red-600 font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>{isTamil ? 'அகற்று' : 'Remove'}</span>
+              </button>
+              <span className="text-slate-300">·</span>
               <span className="text-xs text-slate-500 font-medium">
-                {currentDocument.analysis.fields.length} {isTamil ? 'புலங்கள் கண்டறியப்பட்டது' : 'Fields Extracted'}
+                {currentDocument.analysis.fields.length} {isTamil ? 'புலங்கள்' : 'Fields Extracted'}
               </span>
             </div>
 
@@ -251,6 +281,14 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           <span>{error}</span>
         </div>
       )}
+
+      {/* Camera Capture Modal */}
+      <CameraCaptureModal
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+        onPhotoCaptured={handleFileProcess}
+        language={language}
+      />
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, FileText, Download, Clock, Loader2 } from 'lucide-react';
+import { X, FileText, Clock, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 
 interface HistoryModalProps {
@@ -38,25 +38,27 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
   const isTamil = language === 'ta';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-xl border border-gray-200 flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+      <div className="bg-white rounded-2xl sm:rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-200/90 flex flex-col max-h-[85vh] animate-in fade-in-50 zoom-in-95 duration-150">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
           <div>
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-teal-600" />
-              {isTamil ? 'கடந்த கால அமர்வுகள்' : 'Session History'}
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                <Clock className="w-4 h-4" />
+              </div>
+              <span>{isTamil ? 'சமீபத்திய விண்ணப்பங்கள்' : 'Session History'}</span>
             </h2>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-slate-500 mt-0.5">
               {isTamil
-                ? 'முன்பு சமர்ப்பிக்கப்பட்ட விண்ணப்பங்கள் மற்றும் ஆவணங்கள்'
-                : 'Saved applications and processed government forms'}
+                ? 'முன்பு பூர்த்தி செய்யப்பட்ட அரசு ஆவணங்கள் மற்றும் படிவங்கள்'
+                : 'Previously completed forms and generated PDF files'}
             </p>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -65,67 +67,61 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
         {/* Content */}
         <div className="flex-1 overflow-y-auto py-4 space-y-3">
           {isLoading ? (
-            <div className="py-12 flex flex-col items-center justify-center text-gray-400 gap-2">
-              <Loader2 className="w-7 h-7 text-blue-700 animate-spin" />
-              <p className="text-xs font-semibold">Loading history...</p>
+            <div className="py-12 flex flex-col items-center justify-center text-slate-400 gap-2">
+              <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+              <p className="text-xs font-semibold">Loading previous sessions...</p>
             </div>
           ) : sessions.length === 0 ? (
-            <div className="py-12 text-center text-gray-400">
-              <FileText className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-              <p className="text-sm font-medium">
-                {isTamil ? 'கடந்த கால அமர்வுகள் எதுவும் இல்லை' : 'No past sessions recorded yet'}
-              </p>
-              <p className="text-xs text-gray-400 mt-1">
-                Completed forms will automatically appear here.
+            <div className="py-12 flex flex-col items-center justify-center text-center px-4 space-y-2">
+              <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center">
+                <FileText className="w-6 h-6" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-800">
+                {isTamil ? 'முந்தைய ஆவணங்கள் இல்லை' : 'No Previous Sessions Found'}
+              </h3>
+              <p className="text-xs text-slate-500 max-w-xs">
+                {isTamil
+                  ? 'விண்ணப்பத்தை பூர்த்தி செய்து PDF உருவாக்கினால் இங்கே தானாக சேமிக்கப்படும்.'
+                  : 'Completed forms and generated documents will appear here automatically.'}
               </p>
             </div>
           ) : (
-            sessions.map((item, idx) => (
+            sessions.map((session, idx) => (
               <div
-                key={idx}
-                className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-between gap-3 hover:border-gray-300 transition-colors"
+                key={session.doc_id || idx}
+                className="p-3.5 bg-slate-50 hover:bg-white rounded-xl border border-slate-200/80 hover:border-blue-300 transition-all flex items-center justify-between gap-3 shadow-xs"
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-                    <FileText className="w-5 h-5" />
+                <div className="flex items-center gap-3 truncate">
+                  <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4" />
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="text-xs font-bold text-gray-900 truncate">
-                      {item.filename || 'Government Form'}
-                    </h3>
-                    <p className="text-[11px] text-gray-500 truncate">
-                      ID: {item.session_id || item.doc_id || 'TN-PMS'}
+                  <div className="truncate">
+                    <h4 className="text-xs font-bold text-slate-900 truncate">
+                      {session.filename || 'Government Application'}
+                    </h4>
+                    <p className="text-[10px] text-slate-500 font-medium">
+                      {session.analysis?.title || 'Form Analysis Ready'}
                     </p>
                   </div>
                 </div>
 
-                {item.pdf_filename || item.pdf_url ? (
-                  <a
-                    href={api.getFileUrl(item.pdf_url || `/api/forms/download/${item.pdf_filename}`)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg text-xs font-semibold border border-teal-200 transition-colors shrink-0"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Download</span>
-                  </a>
-                ) : (
-                  <span className="text-[10px] text-gray-400 font-medium bg-gray-200/60 px-2 py-0.5 rounded-md">
-                    Analyzed
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
+                    Saved
                   </span>
-                )}
+                </div>
               </div>
             ))
           )}
         </div>
 
         {/* Footer */}
-        <div className="pt-3 border-t border-gray-100 text-right">
+        <div className="pt-3 border-t border-slate-100 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-colors"
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-all cursor-pointer"
           >
-            {isTamil ? 'மூடுக' : 'Close'}
+            {isTamil ? 'மூடு' : 'Close'}
           </button>
         </div>
       </div>

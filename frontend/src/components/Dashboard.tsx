@@ -1,41 +1,72 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   RotateCcw,
   FileText,
   ShieldCheck,
   ChevronDown,
-  Upload,
   Mic,
+  Clock,
+  FileCheck,
 } from 'lucide-react';
 import { VoiceAssistant } from './VoiceAssistant';
 import { FormCompletion } from './FormCompletion';
+import { DocumentUpload } from './DocumentUpload';
+import { DocumentUnderstanding } from './DocumentUnderstanding';
 import { AiModeModal } from './AiModeModal';
+import { api, DEFAULT_SAMPLE_DOCUMENT } from '../services/api';
 import type { UploadResponse, DocumentField } from '../services/api';
 
 interface DashboardProps {
   initialLanguage: string;
+  autoLoadSample?: boolean;
   onBackToHome: () => void;
+  onViewHistory?: () => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
   initialLanguage,
+  autoLoadSample = false,
   onBackToHome,
+  onViewHistory,
 }) => {
   const [language, setLanguage] = useState<string>(initialLanguage || 'en');
-  const [currentDoc, setCurrentDoc] = useState<UploadResponse | null>(null);
-  const [formData, setFormData] = useState<Record<string, any>>({});
-  const [showDocModal, setShowDocModal] = useState(false);
+  const [currentDoc, setCurrentDoc] = useState<UploadResponse | null>(DEFAULT_SAMPLE_DOCUMENT);
+  const [formData, setFormData] = useState<Record<string, any>>(() => {
+    const initial: Record<string, any> = {};
+    DEFAULT_SAMPLE_DOCUMENT.analysis.fields.forEach((f) => {
+      initial[f.name] = '';
+    });
+    return initial;
+  });
   const [isAiModeModalOpen, setIsAiModeModalOpen] = useState(false);
-  const [currentAiMode, setCurrentAiMode] = useState('Gemini 3.5 Live');
+  const [currentAiMode, setCurrentAiMode] = useState('Gemini Live');
+  const [activeTab, setActiveTab] = useState<'assistant' | 'documents' | 'review'>('assistant');
+
+  // Always load official scholarship application on dashboard mount so form fields are visible
+  useEffect(() => {
+    if (!currentDoc || autoLoadSample) {
+      api.loadSampleDocument(language)
+        .then((res) => {
+          handleDocumentAnalyzed(res);
+        })
+        .catch((err) => {
+          console.error('Failed to auto-load sample document:', err);
+        });
+    }
+  }, [language, autoLoadSample]);
 
   const handleDocumentAnalyzed = (response: UploadResponse) => {
     setCurrentDoc(response);
-    const initialValues: Record<string, any> = {};
-    response.analysis.fields.forEach((f) => {
-      initialValues[f.name] = formData[f.name] || '';
+    setFormData((prev) => {
+      const merged: Record<string, any> = { ...prev };
+      response.analysis.fields.forEach((f) => {
+        if (merged[f.name] === undefined) {
+          merged[f.name] = '';
+        }
+      });
+      return merged;
     });
-    setFormData(initialValues);
   };
 
   const activeFields: DocumentField[] = currentDoc?.analysis?.fields || [];
@@ -65,15 +96,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
       });
 
       if (matched) {
-        return { ...prev, [matched.name]: value };
+        return { ...prev, [matched.name]: value, [fieldName]: value };
       }
 
-      // 3. Fallback: If no direct name match, assign to the first unfilled field
-      const firstUnfilled = activeFields.find(
-        (f) => !prev[f.name] || !prev[f.name].toString().trim()
-      );
-      if (firstUnfilled) {
-        return { ...prev, [firstUnfilled.name]: value };
+      // 3. Alias mapping
+      const aliasMap: Record<string, string> = {
+        name: 'full_name',
+        applicant_name: 'full_name',
+        student_name: 'full_name',
+        dob: 'date_of_birth',
+        birth_date: 'date_of_birth',
+        aadhaar: 'aadhaar_number',
+        aadhaar_no: 'aadhaar_number',
+        income: 'income_annual',
+        annual_income: 'income_annual',
+        course: 'course_name',
+        degree: 'course_name',
+        college: 'institution_name',
+        institution: 'institution_name',
+      };
+      if (aliasMap[fieldName]) {
+        return { ...prev, [aliasMap[fieldName]]: value, [fieldName]: value };
       }
 
       return { ...prev, [fieldName]: value };
@@ -92,18 +135,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
     setFormData({});
   };
 
+  const handleLoadDefaultDoc = async () => {
+    try {
+      const res = await api.loadSampleDocument(language);
+      handleDocumentAnalyzed(res);
+    } catch {
+      handleDocumentAnalyzed(DEFAULT_SAMPLE_DOCUMENT);
+    }
+  };
+
   const isTamil = language === 'ta';
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
-      {/* Top Application Header: Clean, Professional */}
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-2xs">
+      {/* 1. Top SaaS Application Header */}
+      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           {/* Left: Back button & Brand Logo */}
-          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={onBackToHome}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
+              className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
               title="Return to Home"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -113,51 +165,97 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="h-4 w-px bg-slate-200 hidden sm:block" />
 
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-slate-900 text-white flex items-center justify-center shadow-xs">
-                <Mic className="w-3.5 h-3.5 text-teal-400" />
+              <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                <Mic className="w-4 h-4" />
               </div>
-              <span className="text-base font-black tracking-tight text-slate-900">
-                VoiceFirst <span className="text-teal-600">AI</span>
-              </span>
-              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live
+              <span className="text-base font-bold tracking-tight text-slate-900">
+                VoiceFirst <span className="text-blue-600">AI</span>
               </span>
             </div>
           </div>
 
-          {/* Center: Active Document Status / Notification */}
-          <div className="hidden md:flex items-center justify-center flex-1 max-w-md">
-            {currentDoc ? (
-              <button
-                type="button"
-                onClick={() => setShowDocModal(!showDocModal)}
-                className="flex items-center gap-2 bg-slate-100/90 hover:bg-slate-200/80 transition-colors px-3 py-1.5 rounded-full border border-slate-200/80 text-xs font-semibold text-slate-700 max-w-sm truncate cursor-pointer shadow-2xs"
-                title="Click to view document details"
-              >
-                <FileText className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-                <span className="truncate font-bold">{currentDoc.filename}</span>
-                <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded-md font-extrabold shrink-0">
-                  {activeFields.length} {isTamil ? 'விவரங்கள்' : 'fields'}
-                </span>
-                <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
-              </button>
-            ) : (
-              <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span>{isTamil ? 'அரட்டை தயார் · ஆவணத்தை இணைக்கவும்' : 'Chatbot Ready · Attach form or photo below'}</span>
-              </div>
-            )}
+          {/* Center: Workspace Navigation Tabs */}
+          <div className="hidden md:flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/70 text-xs font-semibold">
+            <button
+              onClick={() => setActiveTab('assistant')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+                activeTab === 'assistant'
+                  ? 'bg-white text-blue-600 shadow-xs font-bold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Mic className="w-3.5 h-3.5" />
+              <span>{isTamil ? 'உதவியாளர்' : 'Voice Assistant'}</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('documents')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+                activeTab === 'documents'
+                  ? 'bg-white text-blue-600 shadow-xs font-bold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>{isTamil ? 'ஆவணம் & பதிவேற்றம்' : 'Document & Upload'}</span>
+              {currentDoc && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('review')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+                activeTab === 'review'
+                  ? 'bg-white text-blue-600 shadow-xs font-bold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <FileCheck className="w-3.5 h-3.5" />
+              <span>{isTamil ? 'படிவம் & PDF' : 'Review & PDF'}</span>
+            </button>
           </div>
 
-          {/* Right Action Group: AI Mode + Reset + Language */}
+          {/* Right Action Controls */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            {/* Elegant AI Engine Status Pill */}
+            {/* Load Default Document Button */}
+            <button
+              onClick={handleLoadDefaultDoc}
+              className="text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 flex items-center gap-1.5 font-semibold px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer shadow-2xs"
+              title="Load official government scholarship document"
+            >
+              <FileText className="w-3.5 h-3.5 text-blue-600" />
+              <span>{isTamil ? 'மாதிரி படிவம்' : 'Default Form'}</span>
+            </button>
+
+            {/* New Session Button */}
+            <button
+              onClick={handleReset}
+              className="text-xs text-slate-600 hover:text-red-600 flex items-center gap-1.5 font-semibold px-2.5 py-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Reset conversation and start fresh"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">{isTamil ? 'புதிய அமர்வு' : 'New Session'}</span>
+            </button>
+
+            {/* Session History */}
+            {onViewHistory && (
+              <button
+                onClick={onViewHistory}
+                className="text-xs text-slate-600 hover:text-blue-600 flex items-center gap-1.5 font-semibold px-2.5 py-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+                title="View previous applications"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span className="hidden xl:inline">{isTamil ? 'வரலாறு' : 'History'}</span>
+              </button>
+            )}
+
+            {/* AI Engine Status Pill */}
             <button
               type="button"
               onClick={() => setIsAiModeModalOpen(true)}
-              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold text-slate-700 bg-slate-100/90 hover:bg-slate-200/80 border border-slate-200/80 transition-all cursor-pointer group"
-              title="Click to view AI Engine architecture & modes"
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200/80 shadow-xs transition-all cursor-pointer group"
+              title="Click to view AI Engine architecture"
             >
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -167,95 +265,116 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-slate-600 transition-transform" />
             </button>
 
-            {/* Reset Button */}
-            <button
-              onClick={handleReset}
-              className="text-xs text-slate-500 hover:text-red-700 flex items-center gap-1 font-semibold px-2 sm:px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
-              title="Reset conversation and document"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span className="hidden lg:inline">{isTamil ? 'மீட்டமை' : 'Reset'}</span>
-            </button>
-
-            {/* Segmented Language Switcher */}
-            <div className="flex items-center bg-slate-100 p-0.5 rounded-full border border-slate-200/80 text-xs font-semibold">
+            {/* Language Switcher */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs font-semibold">
               <button
                 onClick={() => setLanguage('en')}
-                className={`px-2 sm:px-2.5 py-1 rounded-full transition-all cursor-pointer ${language === 'en'
-                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
-                    : 'text-slate-500 hover:text-slate-800'
-                  }`}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  language === 'en'
+                    ? 'bg-white text-blue-600 shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
               >
                 EN
               </button>
               <button
                 onClick={() => setLanguage('ta')}
-                className={`px-2 sm:px-2.5 py-1 rounded-full transition-all cursor-pointer ${language === 'ta'
-                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
-                    : 'text-slate-500 hover:text-slate-800'
-                  }`}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  language === 'ta'
+                    ? 'bg-white text-blue-600 shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
               >
                 தமிழ்
               </button>
             </div>
           </div>
         </div>
+
+        {/* Mobile Navigation Bar */}
+        <div className="md:hidden flex items-center justify-around border-t border-slate-100 px-2 py-1.5 bg-white text-xs font-semibold">
+          <button
+            onClick={() => setActiveTab('assistant')}
+            className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1 ${
+              activeTab === 'assistant' ? 'text-blue-600 bg-blue-50 font-bold' : 'text-slate-600'
+            }`}
+          >
+            <Mic className="w-3.5 h-3.5" />
+            <span>Assistant</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('documents')}
+            className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1 ${
+              activeTab === 'documents' ? 'text-blue-600 bg-blue-50 font-bold' : 'text-slate-600'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Document</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('review')}
+            className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1 ${
+              activeTab === 'review' ? 'text-blue-600 bg-blue-50 font-bold' : 'text-slate-600'
+            }`}
+          >
+            <FileCheck className="w-3.5 h-3.5" />
+            <span>Review</span>
+          </button>
+        </div>
       </header>
 
-      {/* Document Details Modal / Drawer (Collapsible) */}
-      {showDocModal && currentDoc && (
-        <div className="bg-white border-b border-slate-200 shadow-md p-4 sm:p-5 transition-all">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-black bg-blue-50 text-blue-800 px-2.5 py-0.5 rounded-full border border-blue-200">
-                  {currentDoc.analysis.document_type || 'Official Application'}
-                </span>
-                <span className="text-xs text-slate-500 font-bold">{currentDoc.filename}</span>
-              </div>
-              <h3 className="text-sm sm:text-base font-black text-slate-900">
-                {isTamil && currentDoc.analysis.title_tamil ? currentDoc.analysis.title_tamil : currentDoc.analysis.title}
-              </h3>
-              <p className="text-xs text-slate-600 max-w-3xl">
-                {isTamil && currentDoc.analysis.purpose_tamil ? currentDoc.analysis.purpose_tamil : currentDoc.analysis.purpose}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => setCurrentDoc(null)}
-                className="text-xs font-bold px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                <span>{isTamil ? 'வேறு ஆவணத்தை பதிவேற்ற' : 'Upload Different Doc'}</span>
-              </button>
-              <button
-                onClick={() => setShowDocModal(false)}
-                className="text-xs font-bold px-3 py-1.5 bg-blue-700 text-white rounded-xl hover:bg-blue-800 transition-colors cursor-pointer"
-              >
-                {isTamil ? 'மூடு' : 'Close'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Direct AI Chatbot Workspace: Modern 2-Column Chatbot UI */}
+      {/* 2. Main Workspace */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 w-full flex-1 flex flex-col">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start flex-1">
-          {/* LEFT / MAIN COLUMN: True Chatbot (65% width) */}
-          <div className="lg:col-span-8 flex flex-col h-[calc(100vh-8.5rem)] min-h-[550px]">
-            <VoiceAssistant
-              language={language}
-              documentContext={currentDoc?.analysis}
-              currentDocument={currentDoc}
-              onFieldDetected={handleFieldDetected}
-              onDocumentAnalyzed={handleDocumentAnalyzed}
-            />
-          </div>
+        {activeTab === 'assistant' ? (
+          /* View 1: Primary Conversational Workspace */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start flex-1">
+            {/* Left Column: AI Voice Assistant (62%) */}
+            <div className="lg:col-span-8 flex flex-col h-[calc(100vh-9.5rem)] min-h-[550px]">
+              <VoiceAssistant
+                language={language}
+                documentContext={currentDoc?.analysis}
+                currentDocument={currentDoc}
+                onFieldDetected={handleFieldDetected}
+                onDocumentAnalyzed={handleDocumentAnalyzed}
+              />
+            </div>
 
-          {/* RIGHT COLUMN: Real-Time Application Tracker (35% width) */}
-          <div className="lg:col-span-4 flex flex-col h-[calc(100vh-8.5rem)] min-h-[550px] sticky top-20">
+            {/* Right Column: Real-Time Application Tracker (38%) */}
+            <div className="lg:col-span-4 flex flex-col h-[calc(100vh-9.5rem)] min-h-[550px] sticky top-20">
+              <FormCompletion
+                fields={activeFields}
+                formData={formData}
+                onUpdateField={handleUpdateField}
+                language={language}
+                sessionId={currentDoc?.doc_id}
+                documentPurpose={isTamil ? currentDoc?.analysis?.purpose_tamil : currentDoc?.analysis?.purpose}
+                supportingDocuments={currentDoc?.analysis?.supporting_documents || []}
+                documentAnalysis={currentDoc?.analysis}
+              />
+            </div>
+          </div>
+        ) : activeTab === 'documents' ? (
+          /* View 2: Dedicated Document & Ingestion Workspace */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start flex-1">
+            <div className="lg:col-span-6 space-y-5">
+              <DocumentUpload
+                language={language}
+                currentDocument={currentDoc}
+                onDocumentAnalyzed={handleDocumentAnalyzed}
+                onClearDocument={handleReset}
+              />
+            </div>
+
+            <div className="lg:col-span-6">
+              <DocumentUnderstanding
+                analysis={currentDoc?.analysis}
+                language={language}
+              />
+            </div>
+          </div>
+        ) : (
+          /* View 3: Review & PDF Workspace */
+          <div className="max-w-3xl mx-auto w-full flex-1 flex flex-col justify-center">
             <FormCompletion
               fields={activeFields}
               formData={formData}
@@ -267,18 +386,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
               documentAnalysis={currentDoc?.analysis}
             />
           </div>
-        </div>
+        )}
       </main>
 
-      {/* Footer Status Bar */}
-      <footer className="border-t border-slate-200/80 bg-white py-2.5 px-4">
+      {/* 3. Footer Status Bar */}
+      <footer className="border-t border-slate-200/80 bg-white py-2.5 px-4 text-xs">
         <div className="max-w-7xl mx-auto flex items-center justify-between text-[11px] text-slate-500">
-          <div className="flex items-center gap-1.5 font-semibold">
-            <ShieldCheck className="w-3.5 h-3.5 text-blue-700" />
-            <span>Secure Voice & Vision · Gemini Multimodal Live Engine · Smart PDF Generator</span>
+          <div className="flex items-center gap-2 font-medium">
+            <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+            <span>Secure Voice & Vision Relay · Gemini Live WebSocket · PyMuPDF Certified</span>
           </div>
-          <span className="font-bold text-slate-700 hidden sm:inline">
-            VoiceFirst AI Accessible Assistant
+          <span className="font-semibold text-slate-700 hidden sm:inline">
+            VoiceFirst AI Assistant
           </span>
         </div>
       </footer>
@@ -289,7 +408,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         onClose={() => setIsAiModeModalOpen(false)}
         language={language}
         onSelectMode={(mode) => {
-          if (mode === 'voice_live') setCurrentAiMode('Gemini 3.5 Live');
+          if (mode === 'voice_live') setCurrentAiMode('Gemini Live');
           else if (mode === 'vision_scan') setCurrentAiMode('Vision Scanner');
           else if (mode === 'fast_fill') setCurrentAiMode('Express Auto-Fill');
           setIsAiModeModalOpen(false);

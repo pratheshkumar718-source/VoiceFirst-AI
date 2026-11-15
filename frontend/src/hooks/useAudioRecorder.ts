@@ -117,8 +117,11 @@ export function useAudioRecorder(options: AudioRecorderOptions = {}) {
       };
 
       source.connect(processor);
-      // Need destination connection for Chrome to keep script processor active
-      processor.connect(audioCtx.destination);
+      // Route through a muted gain node so ScriptProcessor continues running without feedback through speakers
+      const muteGain = audioCtx.createGain();
+      muteGain.gain.value = 0;
+      processor.connect(muteGain);
+      muteGain.connect(audioCtx.destination);
 
       setIsRecording(true);
     } catch (err: any) {

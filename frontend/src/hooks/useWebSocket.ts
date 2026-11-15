@@ -24,10 +24,15 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [serverMode, setServerMode] = useState<string>('ready');
 
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
   const wsRef = useRef<WebSocket | null>(null);
+  const outgoingQueueRef = useRef<string[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
   const nextPlayTimeRef = useRef<number>(0);
   const pingIntervalRef = useRef<any>(null);
+  const reconnectTimeoutRef = useRef<any>(null);
 
   // Initialize playback AudioContext (24kHz for Gemini Live)
   const getAudioContext = useCallback(() => {
@@ -107,87 +112,110 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       return;
     }
 
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+
     setStatus('connecting');
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // If on Live Server (port 5500), connect directly to backend on 8000
+    // Connect directly to FastAPI backend on port 8000 for rock-solid stability
     const host =
-      window.location.port === '5500' || window.location.port === '3000'
+      window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
         ? '127.0.0.1:8000'
-        : window.location.host;
+        : `${window.location.hostname}:8000`;
     const wsUrl = `${protocol}//${host}/ws/live`;
 
-    const socket = new WebSocket(wsUrl);
-    wsRef.current = socket;
+    try {
+      const socket = new WebSocket(wsUrl);
+      wsRef.current = socket;
 
-    socket.onopen = () => {
-      setStatus('connected');
-      // Send initial context
-      socket.send(
-        JSON.stringify({
-          type: 'init',
-          language: options.language || 'en',
-          document_context: options.documentContext || {},
-        })
-      );
+      socket.onopen = () => {
+        setStatus('connected');
+        // Send initial context
+        socket.send(
+          JSON.stringify({
+            type: 'init',
+            language: optionsRef.current.language || 'en',
+            document_context: optionsRef.current.documentContext || {},
+          })
+        );
 
-      // Heartbeat ping
-      pingIntervalRef.current = setInterval(() => {
-        if (socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify({ type: 'ping' }));
-        }
-      }, 15000);
-    };
-
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-
-        if (data.type === 'status') {
-          setServerMode(data.mode || 'connected');
-        } else if (data.type === 'audio') {
-          // Live PCM audio from Gemini
-          playPcmAudio(data.data, 24000);
-        } else if (data.type === 'transcript') {
-          const newMsg: ChatMessage = {
-            id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-            role: data.role,
-            text: data.text,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          };
-
-          setMessages((prev) => [...prev, newMsg]);
-          options.onTranscript?.(newMsg);
-
-          // If fallback mode (no live audio stream returned), synthesize via Web Speech API
-          if (data.role === 'model' && serverMode !== 'gemini_live') {
-            speakTextFallback(data.text, options.language || 'en');
+        // Flush any messages queued before WebSocket opened
+        while (outgoingQueueRef.current.length > 0) {
+          const queued = outgoingQueueRef.current.shift();
+          if (queued) {
+            socket.send(JSON.stringify({ type: 'text', text: queued }));
           }
-        } else if (data.type === 'field_detected') {
-          options.onFieldDetected?.(data.field, data.value);
-        } else if (data.type === 'turn_complete') {
-          options.onTurnComplete?.();
         }
-      } catch (e) {
-        console.error('Error parsing WebSocket message:', e);
-      }
-    };
 
-    socket.onerror = (err) => {
-      console.error('WebSocket error:', err);
+        // Heartbeat ping
+        if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+        pingIntervalRef.current = setInterval(() => {
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 15000);
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+
+          if (data.type === 'status') {
+            setServerMode(data.mode || 'connected');
+            setStatus('connected');
+          } else if (data.type === 'audio') {
+            // Live PCM audio from Gemini
+            playPcmAudio(data.data, 24000);
+          } else if (data.type === 'transcript') {
+            const newMsg: ChatMessage = {
+              id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+              role: data.role,
+              text: data.text,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            };
+
+            setMessages((prev) => [...prev, newMsg]);
+            optionsRef.current.onTranscript?.(newMsg);
+
+            // If fallback mode (no live audio stream returned), synthesize via Web Speech API
+            if (data.role === 'model' && serverMode !== 'gemini_live') {
+              speakTextFallback(data.text, optionsRef.current.language || 'en');
+            }
+          } else if (data.type === 'field_detected') {
+            optionsRef.current.onFieldDetected?.(data.field, data.value);
+          } else if (data.type === 'turn_complete') {
+            optionsRef.current.onTurnComplete?.();
+          }
+        } catch (e) {
+          console.error('Error parsing WebSocket message:', e);
+        }
+      };
+
+      socket.onerror = (err) => {
+        console.warn('WebSocket connection error:', err);
+        setStatus('error');
+      };
+
+      socket.onclose = () => {
+        setStatus('disconnected');
+        if (pingIntervalRef.current) {
+          clearInterval(pingIntervalRef.current);
+        }
+      };
+    } catch (err) {
+      console.warn('Failed to construct WebSocket:', err);
       setStatus('error');
-    };
-
-    socket.onclose = () => {
-      setStatus('disconnected');
-      if (pingIntervalRef.current) {
-        clearInterval(pingIntervalRef.current);
-      }
-    };
-  }, [options, playPcmAudio, speakTextFallback, serverMode]);
+    }
+  }, [playPcmAudio, speakTextFallback, serverMode]);
 
   const disconnect = useCallback(() => {
     if (pingIntervalRef.current) {
       clearInterval(pingIntervalRef.current);
+    }
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
     }
     if (wsRef.current) {
       wsRef.current.close();
@@ -212,15 +240,20 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   }, []);
 
   const sendTextMessage = useCallback((text: string) => {
+    if (!text || !text.trim()) return;
+    const cleanText = text.trim();
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(
         JSON.stringify({
           type: 'text',
-          text,
+          text: cleanText,
         })
       );
+    } else {
+      outgoingQueueRef.current.push(cleanText);
+      connect();
     }
-  }, []);
+  }, [connect]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
@@ -238,6 +271,11 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       );
     }
   }, [options.documentContext, options.language]);
+
+  // Connect on initial mount
+  useEffect(() => {
+    connect();
+  }, [connect]);
 
   useEffect(() => {
     return () => {

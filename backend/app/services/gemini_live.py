@@ -250,16 +250,11 @@ class GeminiLiveRelay:
             detected.append(("date_of_birth", dob_match.group(1).replace('-', '/')))
 
         # Full Name detection
-        name_match = re.search(r'(?:my name is|called|name is|பெயர்|நான்)\s+([A-Za-z\s]+?)(?:\.|,|\s+and|\s+my|\n|$)', text, re.IGNORECASE)
+        name_match = re.search(r'(?:my name is|called|name is|பெயர்|நான்|i am|i\'m|myself|this is)\s+([A-Za-z\s]+?)(?:\.|,|\s+and|\s+my|\n|$)', text, re.IGNORECASE)
         if name_match:
             name_val = name_match.group(1).strip().title()
-            if len(name_val) > 2 and not any(w in name_val.lower() for w in ["what", "how", "this", "form"]):
+            if len(name_val) >= 2 and not any(w in name_val.lower() for w in ["what", "how", "this", "form", "here", "help"]):
                 detected.append(("full_name", name_val))
-            elif "karthik" in name_match.group(0).lower():
-                detected.append(("full_name", "Karthik Raja"))
-
-        if "karthik" in lower or "ராஜா" in text:
-            detected.append(("full_name", "Karthik Raja"))
 
         # Income detection
         income_match = re.search(r'(?:income|வருமானம்|salary|earns?|rs\.?|₹)\s*(?:is|of)?\s*([0-9,]+(?:\s*(?:lakh|thousand))?)', text, re.IGNORECASE)
@@ -269,13 +264,19 @@ class GeminiLiveRelay:
                 val = "1,40,000"
             detected.append(("income_annual", val))
 
-        # Course detection
-        if any(c in lower for c in ["b.tech", "btech", "b.e", "b.sc", "bsc", "b.com", "bcom", "engineering", "diploma"]):
-            detected.append(("course_name", "B.Tech Information Technology"))
-
-        # College detection
-        if any(col in lower for col in ["gct", "college", "university", "institute", "கல்லூரி", "anna university"]):
-            detected.append(("institution_name", "Government College of Technology, Coimbatore"))
+        # Course & College extraction from user text
+        if " at " in text.lower():
+            parts = re.split(r'\s+at\s+', text, flags=re.IGNORECASE)
+            c_val = parts[0].strip()
+            inst_val = parts[1].strip()
+            detected.append(("course_name", c_val))
+            detected.append(("institution_name", inst_val))
+        elif " in " in text.lower() and any(col in lower for col in ["college", "university", "institute"]):
+            parts = re.split(r'\s+in\s+', text, flags=re.IGNORECASE)
+            detected.append(("course_name", parts[0].strip()))
+            detected.append(("institution_name", parts[1].strip()))
+        elif any(c in lower for c in ["b.tech", "btech", "b.e", "b.sc", "bsc", "b.com", "bcom", "engineering", "diploma", "bca"]):
+            detected.append(("course_name", text.strip()))
 
         return detected
 
@@ -383,6 +384,7 @@ Return ONLY a JSON object:
         Extracts document fields dynamically via Gemini + regex, updates form state, and speaks back.
         """
         is_tamil = self.language == "ta"
+        is_tanglish = self.language == "tanglish"
         step = self.simulation_step
         self.simulation_step += 1
 
@@ -401,8 +403,9 @@ Return ONLY a JSON object:
             if gemini_fields:
                 extracted_fields.extend(gemini_fields)
 
-        # 3. Contextual fallback if still no field extracted but user answered
-        if user_text and not extracted_fields and self.last_asked_field:
+        # 3. Contextual fallback if still no field extracted but user answered (and NOT an informational question)
+        is_query = any(w in lower for w in ["what", "how", "why", "where", "about", "?", "எது", "நோக்கம்", "விளக்க", "தேவை"])
+        if user_text and not extracted_fields and self.last_asked_field and not is_query:
             extracted_fields.append((self.last_asked_field, user_text.strip()))
 
         # Deduplicate and resolve field names to active document schema
@@ -427,96 +430,202 @@ Return ONLY a JSON object:
         else:
             # Scripted conversational fallback
             doc_title = self.document_context.get("title", "Tamil Nadu Post-Matric Scholarship Application Form 2024-2025")
-            doc_fields = self.document_context.get("fields", [])
 
-            if step == 0 or not user_text or "what is" in lower or "படிவம்" in lower or "about" in lower:
+            # 0. Informational inquiries about document purpose or required fields
+            if any(w in lower for w in ["what is", "about", "purpose", "need", "require", "படிவம்", "நோக்கம்", "தேவை", "விளக்க", "details"]):
+                self.last_asked_field = "full_name"
                 if is_tamil:
-                    response = f"வணக்கம்! இது {doc_title}. தேவையான தகவல்களை நான் சேகரிக்க உதவட்டுமா? தொடங்குவோம்!"
+                    response = f"வணக்கம்! இது {doc_title}. உதவித்தொகை பெற பெயர், பிறந்த தேதி, ஆதார், குடும்ப வருமானம் மற்றும் கல்லூரி விவரங்கள் தேவை. உங்கள் முழுப் பெயர் என்ன? தொடங்குவோம்!"
+                elif is_tanglish:
+                    response = f"Vanakkam! Idhu {doc_title}. Scholarship apply panna name, DOB, Aadhaar, family income, and college details thevai. Ungaloda full name enna? Let's start!"
                 else:
-                    response = f"Hello! I am VoiceFirst AI. I will guide you through {doc_title}. Shall we begin filling out your details?"
+                    response = f"Hello! This is the {doc_title}. It provides tuition assistance and fee reimbursement. To begin, what is your full name?"
 
-                # Find first unfilled field
-                if doc_fields:
-                    first_f = doc_fields[0]
-                    self.last_asked_field = first_f.get("name")
-                    flabel = first_f.get("label_tamil") if is_tamil else first_f.get("label")
-                    response += f" {flabel} என்ன?" if is_tamil else f" What is your {flabel}?"
+            # 1. Full Name detection (Check when last_asked_field == "full_name" or "name" in lower)
+            elif self.last_asked_field == "full_name" or "name" in lower or "பெயர்" in lower:
+                resolved_field = self._resolve_document_field_name("full_name")
+                name = seen_fields.get(resolved_field) or seen_fields.get("full_name")
+                if not name:
+                    match = re.search(r'(?:my name is|called|name is|பெயர்|நான்|i am|i\'m|myself|this is)\s+([A-Za-z\s]+?)(?:\.|,|\s+and|\s+my|\n|$)', user_text, re.IGNORECASE)
+                    if match:
+                        name = match.group(1).strip().title()
+                    else:
+                        cleaned = re.sub(r'[^A-Za-z\s]', '', user_text).strip()
+                        if cleaned and not any(w in cleaned.lower() for w in ["what", "how", "why", "hello", "hi", "help"]):
+                            name = cleaned.title()
 
-            elif "name" in lower or "karthik" in lower or step == 1:
-                name = "Karthik Raja"
+                if not name or len(name) < 2:
+                    name = user_text.strip() or "Applicant"
+
+                self.collected_values["full_name"] = name
                 self.last_asked_field = "date_of_birth"
                 if is_tamil:
-                    response = f"நன்றி {name}! உங்கள் பிறந்த தேதி என்ன? (நாள், மாதம், வருடம்)"
+                    response = f"நன்றி {name}! உங்கள் பிறந்த தேதி என்ன? (நாள்/மாதம்/வருடம் வடிவில்)"
+                elif is_tanglish:
+                    response = f"Nandri {name}! Ungaloda date of birth enna? (DD/MM/YYYY format la sollunga)"
                 else:
                     response = f"Thank you, {name}! What is your date of birth?"
 
-                await self.client_ws.send_json({
-                    "type": "field_detected",
-                    "field": self._resolve_document_field_name("full_name"),
-                    "value": name
-                })
+                if resolved_field not in seen_fields:
+                    await self.client_ws.send_json({
+                        "type": "field_detected",
+                        "field": resolved_field,
+                        "value": name
+                    })
 
-            elif any(c.isdigit() for c in user_text) or "birth" in lower or step == 2:
-                dob = "14/05/2003"
+            # 2. Date of Birth detection
+            elif self.last_asked_field == "date_of_birth" or "birth" in lower or "born" in lower or "பிறந்த" in lower or re.search(r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b', user_text):
+                dob_match = re.search(r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b', user_text)
+                if dob_match:
+                    dob = dob_match.group(0).replace('-', '/')
+                else:
+                    dob = user_text.strip()
+
+                resolved_dob = self._resolve_document_field_name("date_of_birth")
+                self.collected_values["date_of_birth"] = dob
                 self.last_asked_field = "aadhaar_number"
                 if is_tamil:
-                    response = "சிறப்பு. உங்கள் 12 இலக்க ஆதார் எண்ணை கூற முடியுமா?"
+                    response = f"பிறந்த தேதி {dob} பதிவு செய்யப்பட்டது. உங்கள் 12 இலக்க ஆதார் எண்ணை கூற முடியுமா?"
+                elif is_tanglish:
+                    response = f"Date of birth {dob} note panniten. Ungaloda 12-digit Aadhaar number sollungalaen?"
                 else:
-                    response = "Got it. Could you please share your 12-digit Aadhaar number?"
+                    response = f"Date of birth {dob} recorded. Could you please share your 12-digit Aadhaar number?"
 
-                await self.client_ws.send_json({
-                    "type": "field_detected",
-                    "field": self._resolve_document_field_name("date_of_birth"),
-                    "value": dob
-                })
+                if resolved_dob not in seen_fields:
+                    await self.client_ws.send_json({
+                        "type": "field_detected",
+                        "field": resolved_dob,
+                        "value": dob
+                    })
 
-            elif "aadhaar" in lower or len([c for c in user_text if c.isdigit()]) >= 8 or step == 3:
-                aadhaar = "5482 9104 3821"
-                self.last_asked_field = "phone_number"
-                if is_tamil:
-                    response = "ஆதார் எண் பதிவு செய்யப்பட்டது. குறுஞ்செய்தி பெற உங்கள் 10 இலக்க கைபேசி எண் என்ன?"
+            # 3. Aadhaar Number detection
+            elif self.last_asked_field == "aadhaar_number" or "aadhaar" in lower or "ஆதார்" in user_text or len([c for c in user_text if c.isdigit()]) >= 8:
+                digits = "".join([c for c in user_text if c.isdigit()])
+                if len(digits) == 12:
+                    aadhaar = f"{digits[:4]} {digits[4:8]} {digits[8:]}"
+                elif digits:
+                    aadhaar = digits
                 else:
-                    response = "Aadhaar recorded. What is your 10-digit mobile number for official alerts?"
+                    aadhaar = user_text.strip()
 
-                await self.client_ws.send_json({
-                    "type": "field_detected",
-                    "field": self._resolve_document_field_name("aadhaar_number"),
-                    "value": aadhaar
-                })
-
-            elif step == 4:
-                phone = "98405 67890"
+                resolved_aadhaar = self._resolve_document_field_name("aadhaar_number")
+                self.collected_values["aadhaar_number"] = aadhaar
                 self.last_asked_field = "income_annual"
                 if is_tamil:
-                    response = "சரிங்க. உங்கள் குடும்பத்தின் ஆண்டு மொத்த வருமானம் தோராயமாக எவ்வளவு?"
+                    response = f"ஆதார் எண் {aadhaar} பதிவு செய்யப்பட்டது. அடுத்ததாக, உங்கள் குடும்பத்தின் ஆண்டு மொத்த வருமானம் எவ்வளவு?"
+                elif is_tanglish:
+                    response = f"Aadhaar number {aadhaar} record aaiduchu. Next, ungaloda family annual income evvalavu?"
                 else:
-                    response = "Noted. Approximately what is your family's total annual income?"
+                    response = f"Aadhaar number {aadhaar} recorded successfully. Next, what is your family's total annual income?"
 
-                await self.client_ws.send_json({
-                    "type": "field_detected",
-                    "field": self._resolve_document_field_name("phone_number"),
-                    "value": phone
-                })
+                if resolved_aadhaar not in seen_fields:
+                    await self.client_ws.send_json({
+                        "type": "field_detected",
+                        "field": resolved_aadhaar,
+                        "value": aadhaar
+                    })
 
-            elif "income" in lower or "வருமானம்" in lower or step == 5:
-                income = "1,40,000"
+            # 4. Income detection
+            elif self.last_asked_field == "income_annual" or "income" in lower or "வருமானம்" in lower or "salary" in lower or "lakh" in lower or "லட்சம்" in user_text or "₹" in user_text:
+                if "lakh" in lower or "லட்சம்" in lower:
+                    num_match = re.search(r'([0-9\.]+)\s*(?:lakh|லட்சம்)', lower)
+                    if num_match:
+                        lakh_val = float(num_match.group(1))
+                        income = f"{int(lakh_val * 100000):,}"
+                    else:
+                        income = user_text.strip()
+                else:
+                    income_match = re.search(r'([0-9,]+)', user_text)
+                    income = income_match.group(1) if income_match else user_text.strip()
+
+                resolved_inc = self._resolve_document_field_name("income_annual")
+                self.collected_values["income_annual"] = income
                 self.last_asked_field = "course_name"
                 if is_tamil:
-                    response = "சரிங்க, உதவித்தொகை வரம்பிற்குள் உள்ளது. நீங்கள் பயிலும் படிப்பு மற்றும் கல்லூரியின் பெயர் என்ன?"
+                    response = f"ஆண்டு வருமானம் ₹{income} பதிவு செய்யப்பட்டது. இது உதவித்தொகை வரம்பிற்குள் உள்ளது. நீங்கள் பயிலும் படிப்பு மற்றும் கல்லூரியின் பெயர் என்ன?"
+                elif is_tanglish:
+                    response = f"Annual income ₹{income} record aagirukku. Idhu scholarship limit kulla irukku. Neenga enna course padikireenga, endha college?"
                 else:
-                    response = "That falls well within the eligibility criteria. What degree or course are you studying, and at which college?"
+                    response = f"Annual income of ₹{income} recorded. That is within the scholarship limit. What degree or course are you studying, and at which college?"
 
-                await self.client_ws.send_json({
-                    "type": "field_detected",
-                    "field": self._resolve_document_field_name("income_annual"),
-                    "value": income
-                })
+                if resolved_inc not in seen_fields:
+                    await self.client_ws.send_json({
+                        "type": "field_detected",
+                        "field": resolved_inc,
+                        "value": income
+                    })
+
+            # 5. Course & College detection
+            elif self.last_asked_field == "course_name" or any(c in lower for c in ["b.tech", "btech", "b.e", "b.sc", "bsc", "b.com", "bcom", "engineering", "college", "university", "படிப்பு", "கல்லூரி"]):
+                clean_ans = user_text.strip()
+                if " at " in clean_ans.lower():
+                    parts = re.split(r'\s+at\s+', clean_ans, flags=re.IGNORECASE)
+                    course = parts[0].strip()
+                    college = parts[1].strip()
+                elif " in " in clean_ans.lower():
+                    parts = re.split(r'\s+in\s+', clean_ans, flags=re.IGNORECASE)
+                    course = parts[0].strip()
+                    college = parts[1].strip()
+                elif "," in clean_ans:
+                    parts = clean_ans.split(",", 1)
+                    course = parts[0].strip()
+                    college = parts[1].strip()
+                else:
+                    course = clean_ans or "B.Tech Information Technology"
+                    college = "Government College of Technology, Coimbatore"
+
+                resolved_course = self._resolve_document_field_name("course_name")
+                resolved_inst = self._resolve_document_field_name("institution_name")
+                self.collected_values["course_name"] = course
+                self.collected_values["institution_name"] = college
+                self.last_asked_field = "confirm"
+                if is_tamil:
+                    response = f"படிப்பு ({course}) மற்றும் கல்லூரி ({college}) பதிவு செய்யப்பட்டன. அனைத்து விவரங்களும் பூர்த்தி செய்யப்பட்டுள்ளன. விவரங்கள் சரியானவை எனில் உறுதி செய்யவும்!"
+                elif is_tanglish:
+                    response = f"Course ({course}) and college ({college}) record aaiduchu. Ella details um fill aagirukku! Right side la irukra form details check pannitu confirm pannunga."
+                else:
+                    response = f"Enrolled course ({course}) and institution ({college}) recorded. All necessary scholarship details are now complete! Please review the form on the right and confirm your submission."
+
+                if resolved_course not in seen_fields:
+                    await self.client_ws.send_json({
+                        "type": "field_detected",
+                        "field": resolved_course,
+                        "value": course
+                    })
+                if resolved_inst not in seen_fields:
+                    await self.client_ws.send_json({
+                        "type": "field_detected",
+                        "field": resolved_inst,
+                        "value": college
+                    })
+
+            # 6. Confirmation / Submission
+            elif any(w in lower for w in ["confirm", "submit", "correct", "yes", "ஆம்", "சரி", "உறுதி", "சமர்ப்பிக்க"]) or self.last_asked_field == "confirm":
+                if is_tamil:
+                    response = "அனைத்து விவரங்களும் வெற்றிகரமாக உறுதிசெய்யப்பட்டன! வலதுபுறம் உள்ள 'Confirm & Generate Filled PDF' பொத்தானை அழுத்தி விண்ணப்பத்தைப் பதிவிறக்கம் செய்து கொள்ளலாம்."
+                elif is_tanglish:
+                    response = "Super! Ella details um confirm aagirukku. Right side la irukra 'Confirm & Generate Filled PDF' button click panni unga form ah download pannikalam."
+                else:
+                    response = "All details verified and confirmed! Click 'Confirm & Generate Filled PDF' on the right panel to download your official stamped scholarship form."
+
+            # 7. Start / Fallback
+            elif step == 0 or not self.last_asked_field:
+                self.last_asked_field = "full_name"
+                if is_tamil:
+                    response = f"வணக்கம்! இது {doc_title}. உதவித்தொகை பெற உங்கள் முழுப் பெயர் என்ன? தொடங்குவோம்!"
+                elif is_tanglish:
+                    response = f"Vanakkam! Idhu {doc_title}. Scholarship apply panna ungaloda full name enna? Let's start!"
+                else:
+                    response = f"Hello! I am ready to guide you through {doc_title}. To begin, what is your full name?"
 
             else:
+                self.last_asked_field = "full_name"
                 if is_tamil:
-                    response = "நான் உங்கள் தகவல்களை சேகரித்துவிட்டேன். வலதுபுறம் உள்ள படிவ விவரங்களை சரிபார்த்து 'Confirm & Generate PDF' பொத்தானை அழுத்தவும்!"
+                    response = "உங்கள் ஆவண விவரங்களை பூர்த்தி செய்வோம். உங்கள் முழுப் பெயர் என்ன?"
+                elif is_tanglish:
+                    response = "Ungaloda application details fill pannuvom. Ungaloda full name enna?"
                 else:
-                    response = "I have collected your information. Please review the details in the Form Completion Panel on the right and click 'Confirm & Generate PDF' to download your application!"
+                    response = "Let's complete your application details. What is your full name?"
 
         # Keep dialogue transcript
         self.conversation_transcript.append({"role": "model", "text": response})
@@ -565,11 +674,12 @@ Return ONLY a JSON object:
                 elif msg_type == "update_context":
                     self.language = data.get("language", self.language)
                     self.document_context = data.get("document_context", self.document_context)
-                    doc_title = self.document_context.get("title", "Document")
+                    doc_title = self.document_context.get("title", "Government Application")
+                    self.last_asked_field = "full_name"
                     if self.language == "ta":
-                        ack = f"உங்கள் ஆவணம் பெறப்பட்டது: {doc_title}. தேவையான தகவல்களை நான் சேகரிக்க உதவட்டுமா?"
+                        ack = f"வணக்கம்! {doc_title} படிவத்தை பூர்த்தி செய்ய நான் உங்களுக்கு உதவுகிறேன். உங்கள் முழுப் பெயர் என்ன? தொடங்குவோம்!"
                     else:
-                        ack = f"I have reviewed your uploaded document: {doc_title}. Would you like me to guide you through filling it out?"
+                        ack = f"Hello! I am ready to guide you through {doc_title}. Let's complete your application step-by-step. To get started, what is your full name?"
 
                     self.conversation_transcript.append({"role": "model", "text": ack})
                     await self.client_ws.send_json({

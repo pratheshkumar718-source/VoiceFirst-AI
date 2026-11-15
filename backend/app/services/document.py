@@ -42,7 +42,7 @@ DEFAULT_SCHOLARSHIP_ANALYSIS = {
             "label_tamil": "பாலினம்",
             "type": "select",
             "options": ["Male", "Female", "Other"],
-            "required": True,
+            "required": False,
             "description": "Gender of applicant",
             "description_tamil": "விண்ணப்பதாரரின் பாலினம்"
         },

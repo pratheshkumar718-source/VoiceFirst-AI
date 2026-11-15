@@ -1,25 +1,21 @@
 import React, { useState } from 'react';
 import {
   Mic,
-  FileSearch,
-  CheckCircle,
   ArrowRight,
-  History,
   Sparkles,
   ShieldCheck,
   Volume2,
   FileText,
-  Zap,
-  Users,
-  Languages,
   ChevronDown,
   Menu,
   X,
+  CheckCircle,
+  FileCheck,
 } from 'lucide-react';
 import { AiModeModal } from './AiModeModal';
 
 interface HomepageProps {
-  onStartSession: (lang?: string) => void;
+  onStartSession: (lang?: string, autoLoadSample?: boolean) => void;
   onViewHistory: () => void;
   selectedLanguage: string;
   onLanguageChange: (lang: string) => void;
@@ -35,7 +31,7 @@ export const Homepage: React.FC<HomepageProps> = ({
   const [playingSample, setPlayingSample] = useState<string | null>(null);
   const [isAiModeModalOpen, setIsAiModeModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [currentAiMode, setCurrentAiMode] = useState('Gemini 3.5 Live');
+  const [currentAiMode, setCurrentAiMode] = useState('Gemini Live');
 
   const playVoiceSample = (lang: 'en' | 'ta') => {
     if (!('speechSynthesis' in window)) return;
@@ -44,7 +40,7 @@ export const Homepage: React.FC<HomepageProps> = ({
 
     const text =
       lang === 'ta'
-        ? 'வணக்கம்! நான் வாய்ஸ் ஃபர்ஸ்ட் ஏஐ. உங்கள் அரசு உதவித்தொகை படிவத்தை எளிதாக பூர்த்தி செய்ய நான் உதவுகிறேன்.'
+        ? 'வணக்கம்! நான் வாய்ஸ் ஃபர்ஸ்ட் AI. உங்கள் அரசு உதவித்தொகை படிவத்தை எளிதாக பூர்த்தி செய்ய நான் உதவுகிறேன்.'
         : 'Hello! I am VoiceFirst AI. I will help you understand this government document and complete the application effortlessly.';
 
     const utterance = new SpeechSynthesisUtterance(text);
@@ -65,58 +61,62 @@ export const Homepage: React.FC<HomepageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-between selection:bg-blue-100 selection:text-blue-900">
-      {/* Top Navbar: Clean, Professional, Minimalist */}
-      <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-md border-b border-slate-200/70 transition-all">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-between selection:bg-blue-100 selection:text-blue-900 font-sans">
+      {/* 1. Professional SaaS Navigation Bar */}
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200/80 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-          {/* Left: Brand Logo & Title */}
-          <div className="flex items-center gap-2.5 shrink-0">
-            <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs">
-              <Mic className="w-4 h-4 text-teal-400" />
+          {/* Brand Logo & Title */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-500 text-white flex items-center justify-center shadow-sm shadow-blue-500/20">
+              <Mic className="w-5 h-5" />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-base sm:text-lg font-black tracking-tight text-slate-900">
-                VoiceFirst <span className="text-teal-600">AI</span>
+              <span className="text-lg font-bold tracking-tight text-slate-900">
+                VoiceFirst <span className="text-blue-600">AI</span>
               </span>
-              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live
+              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/80">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+                Gemini Live
               </span>
             </div>
           </div>
 
-          {/* Center: Clean Typographic Navigation Links */}
-          <nav className="hidden md:flex items-center gap-8">
+          {/* Navigation Links */}
+          <nav className="hidden md:flex items-center gap-7">
             <button
               onClick={() => scrollToSection('features')}
-              className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+              className="text-xs font-semibold text-slate-600 hover:text-blue-600 transition-colors cursor-pointer"
             >
               {isTamil ? 'அம்சங்கள்' : 'Features'}
             </button>
-
             <button
-              onClick={() => scrollToSection('capabilities')}
-              className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+              onClick={() => scrollToSection('how-it-works')}
+              className="text-xs font-semibold text-slate-600 hover:text-blue-600 transition-colors cursor-pointer"
             >
               {isTamil ? 'செயல்முறை' : 'How It Works'}
             </button>
-
+            <button
+              onClick={() => scrollToSection('architecture')}
+              className="text-xs font-semibold text-slate-600 hover:text-blue-600 transition-colors cursor-pointer"
+            >
+              {isTamil ? 'தொழில்நுட்பம்' : 'Architecture'}
+            </button>
             <button
               onClick={onViewHistory}
-              className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+              className="text-xs font-semibold text-slate-600 hover:text-blue-600 transition-colors cursor-pointer"
             >
-              {isTamil ? 'வரலாறு' : 'History'}
+              {isTamil ? 'வரலாறு' : 'Session History'}
             </button>
           </nav>
 
-          {/* Right: Controls & Primary Action */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Elegant AI Engine Status Pill */}
+          {/* Controls & Primary Action */}
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            {/* AI Engine Status Pill */}
             <button
               type="button"
               onClick={() => setIsAiModeModalOpen(true)}
-              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold text-slate-700 bg-slate-100/90 hover:bg-slate-200/80 border border-slate-200/80 transition-all cursor-pointer group"
-              title="Click to view AI Engine architecture & modes"
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200/80 shadow-xs hover:border-blue-300 transition-all cursor-pointer group"
+              title="Click to view AI Engine architecture"
             >
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -126,41 +126,43 @@ export const Homepage: React.FC<HomepageProps> = ({
               <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-slate-600 transition-transform" />
             </button>
 
-            {/* Segmented Language Switcher */}
-            <div className="flex items-center bg-slate-100 p-0.5 rounded-full border border-slate-200/80 text-xs font-semibold">
+            {/* Language Switcher */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs font-semibold">
               <button
                 onClick={() => onLanguageChange('en')}
-                className={`px-2.5 py-1 rounded-full transition-all cursor-pointer ${selectedLanguage === 'en'
-                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
-                    : 'text-slate-500 hover:text-slate-800'
-                  }`}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  selectedLanguage === 'en'
+                    ? 'bg-white text-blue-600 shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
               >
                 EN
               </button>
               <button
                 onClick={() => onLanguageChange('ta')}
-                className={`px-2.5 py-1 rounded-full transition-all cursor-pointer ${selectedLanguage === 'ta'
-                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
-                    : 'text-slate-500 hover:text-slate-800'
-                  }`}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  selectedLanguage === 'ta'
+                    ? 'bg-white text-blue-600 shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
               >
                 தமிழ்
               </button>
             </div>
 
-            {/* Primary CTA */}
+            {/* Primary Action Button */}
             <button
               onClick={() => onStartSession(selectedLanguage)}
-              className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white rounded-full text-xs font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-98 text-white rounded-xl text-xs sm:text-sm font-semibold shadow-sm shadow-blue-500/25 transition-all cursor-pointer"
             >
-              <span>{isTamil ? 'அரட்டை' : 'Open Assistant'}</span>
-              <ArrowRight className="w-3.5 h-3.5 text-slate-300" />
+              <span>{isTamil ? 'தொடங்குக' : 'Get Started'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
 
             {/* Mobile Hamburger Toggle */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="md:hidden p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
               aria-label="Toggle Menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -168,48 +170,45 @@ export const Homepage: React.FC<HomepageProps> = ({
           </div>
         </div>
 
-        {/* Clean Mobile Dropdown Sheet */}
+        {/* Mobile Dropdown Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-200/80 bg-white/95 backdrop-blur-md px-4 py-3 space-y-1.5 animate-in slide-in-from-top-2 duration-150">
+          <div className="md:hidden border-t border-slate-200/80 bg-white/95 backdrop-blur-md px-4 py-3 space-y-2 animate-in slide-in-from-top-2 duration-150 shadow-lg">
             <button
               onClick={() => {
                 setMobileMenuOpen(false);
                 scrollToSection('features');
               }}
-              className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-xl flex items-center justify-between"
+              className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg flex items-center justify-between"
             >
               <span>{isTamil ? 'அம்சங்கள்' : 'Features'}</span>
             </button>
-
             <button
               onClick={() => {
                 setMobileMenuOpen(false);
-                scrollToSection('capabilities');
+                scrollToSection('how-it-works');
               }}
-              className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-xl flex items-center justify-between"
+              className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg flex items-center justify-between"
             >
               <span>{isTamil ? 'செயல்முறை' : 'How It Works'}</span>
             </button>
-
             <button
               onClick={() => {
                 setMobileMenuOpen(false);
                 onViewHistory();
               }}
-              className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-xl flex items-center justify-between"
+              className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg flex items-center justify-between"
             >
-              <span>{isTamil ? 'முந்தைய விண்ணப்பங்கள்' : 'Saved Applications History'}</span>
+              <span>{isTamil ? 'முந்தைய விண்ணப்பங்கள்' : 'Session History'}</span>
             </button>
-
             <button
               onClick={() => {
                 setMobileMenuOpen(false);
                 setIsAiModeModalOpen(true);
               }}
-              className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-xl flex items-center justify-between"
+              className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg flex items-center justify-between"
             >
-              <span>{isTamil ? 'AI பயன்முறை அமைப்புகள்' : 'AI Engine Mode'}</span>
-              <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-bold">
+              <span>{isTamil ? 'AI பயன்முறை' : 'AI Engine Mode'}</span>
+              <span className="text-[10px] bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded-full font-bold">
                 {currentAiMode}
               </span>
             </button>
@@ -217,288 +216,424 @@ export const Homepage: React.FC<HomepageProps> = ({
         )}
       </header>
 
-      {/* Hero Section */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-16 flex-1 flex flex-col items-center text-center">
-        {/* Feature Highlights Banner */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-blue-50 via-indigo-50 to-teal-50 border border-blue-200 text-blue-900 text-xs font-bold mb-6 shadow-2xs">
-          <Sparkles className="w-4 h-4 text-teal-600" />
-          <span>Multimodal Document Assistant — Powered by Google Gemini Live API</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
-          <span className="text-teal-700 hidden sm:inline">Voice & Document Vision</span>
-        </div>
+      {/* 2. Hero Section */}
+      <section className="relative overflow-hidden pt-12 pb-20 md:pt-20 md:pb-28">
+        {/* Subtle background glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-gradient-to-tr from-blue-100/60 via-indigo-50/40 to-sky-100/50 rounded-full blur-3xl pointer-events-none -z-10" />
 
-        {/* Hero Title */}
-        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 max-w-4xl leading-tight sm:leading-none">
-          {isTamil ? (
-            <>
-              அரசு ஆவணங்களைப் <span className="text-blue-700 underline decoration-teal-400 decoration-wavy">புரிந்துகொள்ளுங்கள்</span>. <br />
-              குரல் வழியே <span className="text-teal-600">விண்ணப்பியுங்கள்</span>.
-            </>
-          ) : (
-            <>
-              See a Document. <span className="text-blue-700">Speak Naturally.</span> <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-700 via-indigo-700 to-teal-600">
-                Understand Everything.
-              </span> Complete with AI.
-            </>
-          )}
-        </h1>
-
-        {/* Hero Subtitle */}
-        <p className="mt-5 text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl font-normal leading-relaxed">
-          {isTamil
-            ? 'முதியவர்கள் மற்றும் எளிய மக்களுக்காக தமிழ் மற்றும் ஆங்கிலத்தில் அரசு ஆவணங்களை விளக்கி, இயற்கையான குரல் உரையாடலில் படிவங்களை முழுமையாக பூர்த்தி செய்யும் நவீன AI உதவியாளர்.'
-            : 'A voice-first assistant empowering senior citizens, regional-language speakers, and underserved communities to effortlessly decode government forms and submit official applications.'}
-        </p>
-
-        {/* Metrics Strip */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mt-8 w-full max-w-3xl text-left">
-          <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
-              <Zap className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-extrabold text-slate-900">&lt;1.5s Latency</p>
-              <p className="text-[10px] text-slate-500 font-medium">Gemini Live Audio</p>
-            </div>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center flex flex-col items-center">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200/90 text-slate-800 text-xs font-semibold mb-6 shadow-xs">
+            <span className="flex h-2 w-2 rounded-full bg-blue-600" />
+            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+            <span>Voice-First AI for Accessible Government Services</span>
+            <span className="hidden sm:inline text-slate-300">|</span>
+            <span className="text-blue-600 font-bold hidden sm:inline">Gemini Live + Vision</span>
           </div>
 
-          <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center shrink-0">
-              <Languages className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-extrabold text-slate-900">Tamil & English</p>
-              <p className="text-[10px] text-slate-500 font-medium">Native Code-Switching</p>
-            </div>
-          </div>
+          {/* Hero Heading with Blue Gradient */}
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 max-w-4xl leading-[1.15]">
+            {isTamil ? (
+              <>
+                அரசு ஆவணங்களைப் புரிந்துகொள்ளுங்கள்.{' '}
+                <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 bg-clip-text text-transparent">
+                  உங்கள் தாய்மொழியில் பேசுங்கள்.
+                </span>
+              </>
+            ) : (
+              <>
+                Understand Government Documents.{' '}
+                <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 bg-clip-text text-transparent">
+                  Speak Your Language.
+                </span>
+              </>
+            )}
+          </h1>
 
-          <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0">
-              <FileText className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-extrabold text-slate-900">100% AcroForm</p>
-              <p className="text-[10px] text-slate-500 font-medium">PyMuPDF Generation</p>
-            </div>
-          </div>
+          {/* Subtitle */}
+          <p className="mt-6 text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl font-normal leading-relaxed">
+            {isTamil
+              ? 'முதியவர்கள் மற்றும் எளிய மக்களுக்காக அரசு ஆவணங்களை விளக்கி, விண்ணப்பங்களில் வழிகாட்டி, படிவங்களை குரல் உரையாடல் மூலம் எளிதாக பூர்த்தி செய்யும் நவீன AI உதவியாளர்.'
+              : 'An intelligent voice-first assistant that simplifies government documents, guides you through applications, and helps you complete forms effortlessly.'}
+          </p>
 
-          <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-              <Users className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-extrabold text-slate-900">Accessible</p>
-              <p className="text-[10px] text-slate-500 font-medium">Built for Seniors</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Live Audio Sample Tester */}
-        <div className="mt-8 bg-blue-50/70 border border-blue-200/80 rounded-2xl p-4 w-full max-w-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
-              <Volume2 className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-blue-950">
-                {isTamil ? 'குரல் மாதிரியை உடனே கேளுங்கள்' : 'Listen to Live Voice Preview:'}
-              </p>
-              <p className="text-[11px] text-blue-700">
-                {isTamil
-                  ? 'தமிழ் அல்லது ஆங்கிலத்தில் மாதிரி பதிலை ஒலிக்கச் செய்யுங்கள்'
-                  : 'Test natural bilingual spoken clarity in Tamil or English'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Primary Call-to-Actions */}
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5 w-full sm:w-auto">
             <button
-              onClick={() => playVoiceSample('ta')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${playingSample === 'ta'
-                ? 'bg-blue-700 text-white border-blue-700 shadow-xs'
-                : 'bg-white text-blue-800 border-blue-200 hover:bg-blue-100'
-                }`}
+              onClick={() => onStartSession(selectedLanguage)}
+              className="w-full sm:w-auto px-6 py-3.5 bg-blue-600 hover:bg-blue-700 active:scale-98 text-white rounded-xl text-sm font-semibold shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Volume2 className="w-3.5 h-3.5" />
-              <span>தமிழ் Voice</span>
+              <span>{isTamil ? 'விண்ணப்பத்தைத் தொடங்குக' : 'Get Started'}</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
+
             <button
-              onClick={() => playVoiceSample('en')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${playingSample === 'en'
-                ? 'bg-blue-700 text-white border-blue-700 shadow-xs'
-                : 'bg-white text-blue-800 border-blue-200 hover:bg-blue-100'
-                }`}
+              onClick={() => scrollToSection('features')}
+              className="w-full sm:w-auto px-6 py-3.5 bg-white hover:bg-slate-50 active:scale-98 text-slate-800 border border-slate-200/90 rounded-xl text-sm font-semibold shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Volume2 className="w-3.5 h-3.5" />
-              <span>English Voice</span>
+              <span>{isTamil ? 'அம்சங்களை அறிக' : 'Explore Features'}</span>
+            </button>
+
+            <button
+              onClick={() => onStartSession(selectedLanguage, true)}
+              className="w-full sm:w-auto px-5 py-3.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/70 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer"
+              title="Instantly opens with Tamil Nadu Scholarship sample"
+            >
+              <Sparkles className="w-4 h-4 text-indigo-600" />
+              <span>{isTamil ? 'மாதிரி படிவத்தை முயற்சிக்க' : 'Try Demo Sample'}</span>
             </button>
           </div>
-        </div>
 
-        {/* Two Large Action Cards Side by Side */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl mt-8">
-          {/* Card 1: Start New Session (Primary) */}
-          <div
-            onClick={() => onStartSession(selectedLanguage)}
-            className="group relative bg-white border-2 border-blue-600 hover:border-blue-700 rounded-3xl p-7 text-left shadow-md hover:shadow-xl transition-all cursor-pointer flex flex-col justify-between ring-4 ring-blue-50"
-          >
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-14 h-14 rounded-2xl bg-blue-700 text-white flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
-                  <Mic className="w-7 h-7" />
+          {/* 3. Attractive AI Assistant Visualization Card */}
+          <div className="mt-14 w-full max-w-5xl">
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xl shadow-slate-200/50 p-2 sm:p-4 text-left transition-all">
+              {/* Window Controls Bar */}
+              <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-slate-200" />
+                  <span className="w-3 h-3 rounded-full bg-slate-200" />
+                  <span className="w-3 h-3 rounded-full bg-slate-200" />
+                  <span className="text-xs font-semibold text-slate-500 ml-2">VoiceFirst AI Dashboard Preview</span>
                 </div>
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                  Primary Action
-                </span>
-              </div>
-
-              <h2 className="text-2xl font-black text-slate-900 group-hover:text-blue-900">
-                {isTamil ? 'புதிய அமர்வைத் தொடங்கு' : 'Start New Session'}
-              </h2>
-              <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-                {isTamil
-                  ? 'அரசு உதவித்தொகை படிவத்தைப் பதிவேற்றி நேரலை குரல் உரையாடலில் கேள்விகளைக் கேட்கவும், எளிதாக முடிக்கவும்.'
-                  : 'Upload an application form or take a clean photo to experience natural voice conversation.'}
-              </p>
-
-              <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-500">
-                <span className="bg-slate-100 px-2.5 py-1 rounded-md">📄 Form Understanding</span>
-                <span className="bg-slate-100 px-2.5 py-1 rounded-md">🎙️ Voice Q&A</span>
-                <span className="bg-slate-100 px-2.5 py-1 rounded-md">📥 PDF Download</span>
-              </div>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-sm font-black text-blue-700">
-                {isTamil ? 'தொடங்க அழுத்தவும்' : 'Launch Assistant Now'}
-              </span>
-              <div className="w-8 h-8 rounded-full bg-blue-50 group-hover:bg-blue-700 group-hover:text-white text-blue-700 flex items-center justify-center transition-all group-hover:translate-x-1">
-                <ArrowRight className="w-4 h-4" />
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: View History (Secondary) */}
-          <div
-            onClick={onViewHistory}
-            className="group relative bg-white border border-slate-200 hover:border-slate-300 rounded-3xl p-7 text-left shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-14 h-14 rounded-2xl bg-teal-50 group-hover:bg-teal-600 text-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
-                  <History className="w-7 h-7" />
+                <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Bidirectional PCM Audio Live</span>
                 </div>
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
-                  Past Applications
-                </span>
               </div>
 
-              <h2 className="text-2xl font-black text-slate-900">
-                {isTamil ? 'வரலாற்றைக் காண்க' : 'View History'}
-              </h2>
-              <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-                {isTamil
-                  ? 'முன்பு சமர்ப்பிக்கப்பட்ட உதவித்தொகை விண்ணப்பங்கள் மற்றும் உருவாக்கப்பட்ட PDF ஆவணங்களை மதிப்பாய்வு செய்யவும்.'
-                  : 'Review submitted government applications, inspect extracted fields, and re-download completed PDF certificates.'}
-              </p>
+              {/* Showcase Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                {/* Left Showcase: Interactive Voice preview */}
+                <div className="md:col-span-6 bg-gradient-to-br from-slate-50 to-blue-50/50 p-5 rounded-2xl border border-slate-200/70 flex flex-col justify-between h-full space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                        AI
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900">Gemini Live Assistant</h4>
+                        <p className="text-[10px] text-slate-500">Tamil & English Real-Time Voice</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full">
+                      PCM 24kHz
+                    </span>
+                  </div>
 
-              <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-500">
-                <span className="bg-slate-100 px-2.5 py-1 rounded-md">🗄️ Supabase Records</span>
-                <span className="bg-slate-100 px-2.5 py-1 rounded-md">📑 Stamped PDFs</span>
-              </div>
-            </div>
+                  {/* Simulated Waveform & Mic */}
+                  <div className="py-6 flex flex-col items-center justify-center text-center">
+                    <div className="relative mb-4">
+                      <div className="w-20 h-20 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 ring-8 ring-blue-100 animate-pulse">
+                        <Mic className="w-8 h-8 text-white" />
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold text-slate-700">
+                      {isTamil ? '"என் பெயர் கார்த்திக் ராஜா"' : '"My name is Karthik Raja"'}
+                    </span>
+                    <span className="text-[11px] text-slate-500 mt-1">
+                      {isTamil
+                        ? 'இயற்கையான குரல் வழியே விவரங்களை நிரப்புகிறது'
+                        : 'Capturing details automatically from spoken answers'}
+                    </span>
+                  </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900">
-                {isTamil ? 'வரலாறு பார்க்க' : 'Open Saved Sessions'}
-              </span>
-              <div className="w-8 h-8 rounded-full bg-slate-100 group-hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all group-hover:translate-x-1">
-                <ArrowRight className="w-4 h-4" />
+                  {/* Audio Preview Buttons */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-slate-200/60">
+                    <button
+                      onClick={() => playVoiceSample('en')}
+                      disabled={playingSample !== null}
+                      className="flex-1 py-2 px-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Volume2 className="w-3.5 h-3.5 text-blue-600" />
+                      <span>{playingSample === 'en' ? 'Playing...' : 'Hear English AI'}</span>
+                    </button>
+                    <button
+                      onClick={() => playVoiceSample('ta')}
+                      disabled={playingSample !== null}
+                      className="flex-1 py-2 px-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Volume2 className="w-3.5 h-3.5 text-teal-600" />
+                      <span>{playingSample === 'ta' ? 'ஒலிக்கிறது...' : 'தமிழ் குரல் கேட்க'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right Showcase: Real-Time Form Tracker Card */}
+                <div className="md:col-span-6 bg-white p-5 rounded-2xl border border-slate-200/70 flex flex-col justify-between h-full space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <FileCheck className="w-5 h-5 text-blue-600" />
+                      <h4 className="text-xs font-bold text-slate-900">Tamil Nadu Scholarship Application</h4>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                      75% Completed
+                    </span>
+                  </div>
+
+                  {/* Simulated Form Fields */}
+                  <div className="space-y-2.5 text-xs">
+                    <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-emerald-800 uppercase block">Full Name / முழு பெயர்</span>
+                        <span className="font-semibold text-slate-900">Karthik Raja S</span>
+                      </div>
+                      <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-emerald-800 uppercase block">Date of Birth / பிறந்த தேதி</span>
+                        <span className="font-semibold text-slate-900">14/05/2003</span>
+                      </div>
+                      <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-blue-50/70 border border-blue-200/80 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-blue-800 uppercase block">Aadhaar Number / ஆதார் எண்</span>
+                        <span className="font-semibold text-slate-900">5482 9104 3821</span>
+                      </div>
+                      <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-300/80 flex items-center justify-between animate-pulse">
+                      <div>
+                        <span className="text-[10px] font-bold text-amber-800 uppercase block">Annual Family Income / ஆண்டு வருமானம்</span>
+                        <span className="text-amber-700 font-medium italic">Gemini is asking for this field now...</span>
+                      </div>
+                      <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                        Next
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Certified PyMuPDF Badge */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-500 font-medium">
+                    <span className="flex items-center gap-1 text-slate-600">
+                      <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+                      Official AcroForm Template Supported
+                    </span>
+                    <span className="font-bold text-blue-600">1-Click PDF Export</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
+      </section>
 
-        {/* Feature Highlights Grid */}
-        <section id="features" className="w-full max-w-4xl mt-16 pt-10 border-t border-slate-200">
-          <div className="text-center mb-10">
-            <span className="text-xs font-black text-teal-700 uppercase tracking-widest bg-teal-50 border border-teal-200 px-3 py-1 rounded-full">
-              {isTamil ? 'அம்சங்கள் & தொழில்நுட்பம்' : 'Core Capabilities'}
-            </span>
-            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mt-3">
-              {isTamil ? 'எளிய மனிதர்களுக்கான நவீன தொழில்நுட்பம்' : 'Accessible Multimodal Architecture'}
-            </h3>
+      {/* 4. Features Section */}
+      <section id="features" className="py-16 md:py-24 bg-white border-y border-slate-200/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <span className="text-xs font-bold text-blue-600 tracking-wider uppercase">Built for Accessibility</span>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mt-2">
+              Everything You Need to Navigate Government Paperwork
+            </h2>
+            <p className="mt-3 text-sm sm:text-base text-slate-600">
+              Transforming complex administrative forms into simple, respectful, and voice-guided digital workflows.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-            <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
-              <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Feature 1 */}
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-blue-300 hover:shadow-md transition-all group">
+              <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+                <FileText className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900 mb-2">Multimodal Document Vision</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Scan or photograph any paper form or PDF notice. Gemini 2.0 / 3.5 extracts form fields, eligibility rules, and required proofs in seconds.
+              </p>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-blue-300 hover:shadow-md transition-all group">
+              <div className="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
                 <Mic className="w-6 h-6" />
               </div>
-              <h4 className="text-base font-black text-slate-900">
-                {isTamil ? '1. நேரலை குரல் உரையாடல்' : '1. Gemini Live Audio'}
-              </h4>
+              <h3 className="text-base font-bold text-slate-900 mb-2">Real-Time Gemini Live Audio</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                {isTamil
-                  ? 'நேட்டிவ் ஆடியோ ஸ்ட்ரீமிங் மூலம் தமிழ் மற்றும் ஆங்கிலத்தில் இயற்கையாக பேசலாம்.'
-                  : 'Sub-second audio streaming with bidirectional WebSockets for conversational voice.'}
+                Stream native 16kHz PCM audio directly over WebSockets with sub-second latency and interruption handling in natural Tamil, English, or Tanglish.
               </p>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
-              <div className="w-12 h-12 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center">
-                <FileSearch className="w-6 h-6" />
+            {/* Feature 3 */}
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-blue-300 hover:shadow-md transition-all group">
+              <div className="w-12 h-12 rounded-xl bg-teal-100 text-teal-600 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+                <Sparkles className="w-6 h-6" />
               </div>
-              <h4 className="text-base font-black text-slate-900">
-                {isTamil ? '2. மல்டிமோடல் ஆவணப் பார்வை' : '2. Document Understanding'}
-              </h4>
+              <h3 className="text-base font-bold text-slate-900 mb-2">Conversational Form Filler</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                {isTamil
-                  ? 'எந்தவொரு ஆவணத்தின் PDF அல்லது புகைப்படத்தையும் தானாக படித்து தகவல்களை கண்டறிகிறது.'
-                  : 'Multimodal vision analyzes scanned forms, certificates, and ID documents instantly.'}
+                Asks for applicant information step-by-step, performs real-time field validation, and lets you edit any answer verbally or manually.
               </p>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
-              <div className="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
-                <CheckCircle className="w-6 h-6" />
+            {/* Feature 4 */}
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-blue-300 hover:shadow-md transition-all group">
+              <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+                <FileCheck className="w-6 h-6" />
               </div>
-              <h4 className="text-base font-black text-slate-900">
-                {isTamil ? '3. தானியங்கி PDF உருவாக்கம்' : '3. Official PDF Stamping'}
-              </h4>
+              <h3 className="text-base font-bold text-slate-900 mb-2">Official PyMuPDF PDF Engine</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                {isTamil
-                  ? 'குரல் மூலம் பெற்ற விவரங்களை அதிகாரப்பூர்வ PDF படிவத்தில் அழகாக நிரப்பி வழங்குகிறது.'
-                  : 'Direct AcroForm generation with reference numbers, ready for submission.'}
+                Populates official government AcroForm fields, stamps verification badges, and produces clean print-ready PDFs for one-click download.
               </p>
             </div>
           </div>
-        </section>
-      </main>
+        </div>
+      </section>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-6 px-4">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-3">
+      {/* 5. How It Works Section */}
+      <section id="how-it-works" className="py-16 md:py-24 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <span className="text-xs font-bold text-blue-600 tracking-wider uppercase">Simple 4-Step Journey</span>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mt-2">
+              How VoiceFirst AI Works
+            </h2>
+            <p className="mt-3 text-sm sm:text-base text-slate-600">
+              Designed for ease of use by seniors, rural citizens, and first-time digital applicants.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {/* Step 1 */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs relative">
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center mb-4">
+                1
+              </div>
+              <h3 className="text-sm font-bold text-slate-900 mb-1">Attach or Snap Document</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Upload your PDF or take a clean picture with your phone camera. Gemini analyzes the form instantly.
+              </p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs relative">
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center mb-4">
+                2
+              </div>
+              <h3 className="text-sm font-bold text-slate-900 mb-1">Speak Naturally</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Click the circular microphone and converse in your preferred language. Ask questions and reply conversationally.
+              </p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs relative">
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center mb-4">
+                3
+              </div>
+              <h3 className="text-sm font-bold text-slate-900 mb-1">Review Real-Time Answers</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Watch the fields populate and turn green in real-time. Correct any detail verbally or with quick taps.
+              </p>
+            </div>
+
+            {/* Step 4 */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs relative">
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center mb-4">
+                4
+              </div>
+              <h3 className="text-sm font-bold text-slate-900 mb-1">Download Certified PDF</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Confirm your submission to generate a validated official PDF document ready to be printed and submitted.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 6. Architecture / Technology Stack */}
+      <section id="architecture" className="py-16 bg-white border-t border-slate-200/80">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="max-w-2xl mx-auto mb-10">
+            <span className="text-xs font-bold text-blue-600 tracking-wider uppercase">Production-Grade Architecture</span>
+            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mt-2">
+              Powered by Google Gemini Live & Multimodal AI
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 mt-2">
+              Engineered with clean separation of concerns, zero client-side key leakage, and offline fallback capabilities.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-4xl mx-auto">
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 text-left">
+              <span className="text-[10px] font-bold text-blue-600 uppercase">Voice Engine</span>
+              <p className="text-xs font-bold text-slate-900 mt-1">Gemini Live API</p>
+              <p className="text-[11px] text-slate-500">PCM 16k in / 24k out</p>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 text-left">
+              <span className="text-[10px] font-bold text-indigo-600 uppercase">Vision Engine</span>
+              <p className="text-xs font-bold text-slate-900 mt-1">Gemini 2.0 / 3.5 Flash</p>
+              <p className="text-[11px] text-slate-500">Document Understanding</p>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 text-left">
+              <span className="text-[10px] font-bold text-teal-600 uppercase">Backend Server</span>
+              <p className="text-xs font-bold text-slate-900 mt-1">FastAPI + WebSockets</p>
+              <p className="text-[11px] text-slate-500">Relay & Structured JSON</p>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 text-left">
+              <span className="text-[10px] font-bold text-emerald-600 uppercase">PDF Generation</span>
+              <p className="text-xs font-bold text-slate-900 mt-1">PyMuPDF (fitz)</p>
+              <p className="text-[11px] text-slate-500">Certified AcroForm Stamping</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 7. Footer */}
+      <footer className="bg-slate-900 text-slate-400 py-10 px-4 sm:px-6 lg:px-8 text-xs border-t border-slate-800">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-blue-700" />
-            <span>VoiceFirst AI · Accessible Multimodal Assistant</span>
+            <div className="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
+              <Mic className="w-3.5 h-3.5" />
+            </div>
+            <span className="font-bold text-white text-sm">VoiceFirst AI</span>
+            <span className="text-slate-500">| Accessible Government Form Filling</span>
           </div>
-          <span>Powered by Google Gemini Live API · PyMuPDF · Supabase</span>
+
+          <div className="flex items-center gap-6">
+            <button
+              onClick={() => scrollToSection('features')}
+              className="hover:text-white transition-colors cursor-pointer"
+            >
+              Features
+            </button>
+            <button
+              onClick={() => scrollToSection('how-it-works')}
+              className="hover:text-white transition-colors cursor-pointer"
+            >
+              How It Works
+            </button>
+            <button
+              onClick={onViewHistory}
+              className="hover:text-white transition-colors cursor-pointer"
+            >
+              History
+            </button>
+          </div>
+
+          <div className="text-slate-500">
+            Powered by Google Gemini 2.0 / 3.5 & PyMuPDF
+          </div>
         </div>
       </footer>
 
-      {/* AI Mode Configuration Modal */}
+      {/* AI Mode Selection & Diagnostic Modal */}
       <AiModeModal
         isOpen={isAiModeModalOpen}
         onClose={() => setIsAiModeModalOpen(false)}
         language={selectedLanguage}
         onSelectMode={(mode) => {
-          if (mode === 'voice_live') setCurrentAiMode('Gemini 3.5 Live');
-          if (mode === 'vision_scan') setCurrentAiMode('Vision Scanner');
-          if (mode === 'fast_fill') setCurrentAiMode('Express Auto-Fill');
+          if (mode === 'voice_live') setCurrentAiMode('Gemini Live');
+          else if (mode === 'vision_scan') setCurrentAiMode('Vision Scanner');
+          else if (mode === 'fast_fill') setCurrentAiMode('Express Auto-Fill');
+          setIsAiModeModalOpen(false);
         }}
-        onLaunchAssistant={() => onStartSession(selectedLanguage)}
       />
     </div>
   );
